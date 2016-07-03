@@ -23,11 +23,22 @@ class StoredFile:
             part = c.read(left)
             if not part:
                 continue
-            data.write(part)
-            if data.tell() < size:
-                left = size - data.tell()
+            data.write(part[:left])
+            left -= len(part[:left])
         data.seek(0)
         return data.read()
+
+    def seek(self, offset):
+        left = offset
+        for c in self.chunks:
+            if left == 0:
+                break
+            start = c.tell()
+            c.seek(left)
+            end = c.tell()
+            left -= (end - start)
+            if end == start or left != 0:
+                continue
 
 class StoredFileReader:
     file = None
