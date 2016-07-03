@@ -6,6 +6,7 @@ class LocalFileStore:
     """A chunk store backed by a locally-accessible file system."""
 
     config = configparser.ConfigParser(delimiters=('=',))
+    config.optionxform = lambda o: o # need to be case-sensitive
 
     def get_path(self, key):
         if len(key) != 32:

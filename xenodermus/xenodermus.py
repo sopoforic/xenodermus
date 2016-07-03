@@ -50,6 +50,7 @@ class Hoard(collections.MutableMapping):
     """A file store."""
 
     config = configparser.ConfigParser(delimiters=('=',))
+    config.optionxform = lambda o: o # need to be case-sensitive
     hoard_id = None
     chunk_stores = {}
     con = None
