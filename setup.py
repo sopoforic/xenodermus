@@ -4,5 +4,5 @@ setup(name='xenodermus',
       description='Simple file storage library',
       author='Tracy Poff',
       author_email='tracy.poff@gmail.com',
-      py_modules=['xenodermus'],
+      packages=['xenodermus', 'xenodermus.backends'],
       )
