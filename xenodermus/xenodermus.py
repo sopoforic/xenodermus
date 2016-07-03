@@ -34,11 +34,12 @@ class StoredFile:
             if left == 0:
                 break
             start = c.tell()
-            c.seek(left)
+            c.seek(0, 2)
             end = c.tell()
+            if end - start > left:
+                c.seek(start + left, 0)
+                end = c.tell()
             left -= (end - start)
-            if end == start or left != 0:
-                continue
 
 class StoredFileReader:
     file = None
