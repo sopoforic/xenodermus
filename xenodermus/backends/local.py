@@ -5,7 +5,7 @@ import configparser
 class LocalFileStore:
     """A chunk store backed by a locally-accessible file system."""
 
-    config = configparser.ConfigParser()
+    config = configparser.ConfigParser(delimiters=('=',))
 
     def get_path(self, key):
         if len(key) != 32:

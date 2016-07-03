@@ -20,9 +20,10 @@ class StoredFile:
         for c in self.chunks:
             if left == 0:
                 break
-            if not c.readable():
+            part = c.read(left)
+            if not part:
                 continue
-            data.write(c.read(left))
+            data.write(part)
             if data.tell() < size:
                 left = size - data.tell()
         data.seek(0)
@@ -48,7 +49,7 @@ class StoredFileReader:
 class Hoard(collections.MutableMapping):
     """A file store."""
 
-    config = configparser.ConfigParser()
+    config = configparser.ConfigParser(delimiters=('=',))
     hoard_id = None
     chunk_stores = {}
     con = None
@@ -85,7 +86,7 @@ class Hoard(collections.MutableMapping):
             self.config.write(f)
 
         if self.config['HOARD']['db'] == 'sqlite':
-            self.con = sqlite3.connect(self.config['HOARD']['db_path'])
+            self.con = sqlite3.connect(self.config['HOARD']['db_path'], check_same_thread=False)
         else:
             raise ValueError('Invalid DB type.')
 
@@ -143,7 +144,7 @@ class Hoard(collections.MutableMapping):
             cur.execute("INSERT INTO file (name, size, hash) VALUES (?, ?, ?);", (name, size, file_hash))
             file_id = cur.lastrowid
             ordering = 1
-            while data.readable():
+            while True:
                 name = uuid.uuid4().hex
                 chunk_data = data.read(int(self.config['HOARD']['chunk_size']))
                 if not chunk_data:
@@ -172,6 +173,10 @@ class Hoard(collections.MutableMapping):
                     name TEXT,
                     size INTEGER,
                     hash TEXT);
+            """)
+            con.execute("""
+                CREATE INDEX IF NOT EXISTS file_size_hash_idx
+                    ON file (size, hash);
             """)
             con.execute("""
                 CREATE TABLE IF NOT EXISTS chunk (
