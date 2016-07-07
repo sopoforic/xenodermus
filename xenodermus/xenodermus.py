@@ -124,13 +124,27 @@ class Hoard(collections.MutableMapping):
                 ORDER BY ordering ASC;""", (key,))
             for c in cur.fetchall():
                 chunks.append(self.chunk_stores[c[0]][c[1]])
+            if not chunks:
+                raise KeyError("No such file in this Hoard.")
             return StoredFile(chunks)
 
     def __setitem__(self, key, value):
         raise NotImplementedError("Use Hoard.put().")
 
     def __delitem__(self, key):
-        raise NotImplementedError
+        with self.con as con:
+            cur = con.cursor()
+            cur.execute("""
+                SELECT chunk_store, name
+                FROM chunk
+                WHERE file_id = ?
+                ORDER BY ordering ASC;""", (key,))
+            for c in cur.fetchall():
+                del self.chunk_stores[c[0]][c[1]]
+            cur.execute("""
+                DELETE
+                FROM chunk
+                WHERE file_id = ?;""", (key,))
 
     def put(self, data, name=None):
         name = name
