@@ -14,6 +14,17 @@ class StoredFile:
     def __init__(self, chunks):
         self.chunks = chunks
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        for f in self.chunks:
+            try:
+                f.close()
+            except:
+                pass
+        return
+
     def read(self, size=-1):
         data = io.BytesIO()
         left = size
@@ -23,13 +34,19 @@ class StoredFile:
             part = c.read(left)
             if not part:
                 continue
-            data.write(part[:left])
-            left -= len(part[:left])
+            data.write(part)
+            if size != -1:
+                left -= len(part)
         data.seek(0)
         return data.read()
 
-    def seek(self, offset):
+    def seek(self, offset, from_where=0):
         left = offset
+        if from_where == 0:
+            for c in self.chunks:
+                c.seek(0,0)
+        else:
+            raise NotImplementedError
         for c in self.chunks:
             if left == 0:
                 break
@@ -40,23 +57,6 @@ class StoredFile:
                 c.seek(start + left, 0)
                 end = c.tell()
             left -= (end - start)
-
-class StoredFileReader:
-    file = None
-
-    def __init__(self, file):
-        self.file = file
-
-    def __enter__(self):
-        return self.file
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        for f in self.file.chunks:
-            f.close()
-        return
-
-    def read(self, size=-1):
-        return self.file.read(size)
 
 class Hoard(collections.MutableMapping):
     """A file store."""
@@ -124,7 +124,7 @@ class Hoard(collections.MutableMapping):
                 ORDER BY ordering ASC;""", (key,))
             for c in cur.fetchall():
                 chunks.append(self.chunk_stores[c[0]][c[1]])
-            return StoredFileReader(StoredFile(chunks))
+            return StoredFile(chunks)
 
     def __setitem__(self, key, value):
         raise NotImplementedError("Use Hoard.put().")
