@@ -70,10 +70,11 @@ class Hoard(collections.MutableMapping):
     def __init__(self, hoard_id=None, path='hoard', config=None,
                  chunk_size=256*1024, chunk_stores=[]):
         if config:
+            self.config_path = config
             self.config.read(config)
             for store in self.config['STORES']:
                 if self.config['STORES'][store] == 'local':
-                    s = LocalFileStore(config=store)
+                    s = LocalFileStore(config=os.path.join(os.path.dirname(config), store))
                     self.chunk_stores[s.config['STORE']['store_id']] = s
                 else:
                     raise ValueError("Invalid store type.")
@@ -85,7 +86,7 @@ class Hoard(collections.MutableMapping):
             self.config['HOARD']['hoard_id'] = hoard_id if hoard_id else uuid.uuid4().hex
             self.config['HOARD']['chunk_size'] = str(chunk_size)
             self.config['HOARD']['db'] = 'sqlite'
-            self.config['HOARD']['db_path'] = os.path.join(path, self.config['HOARD']['hoard_id'] + '.db')
+            self.config['HOARD']['db_path'] = self.config['HOARD']['hoard_id'] + '.db'
             self.config['HOARD']['allow_duplicates'] = 'false'
             if not chunk_stores:
                 chunk_stores = [LocalFileStore()]
@@ -93,13 +94,15 @@ class Hoard(collections.MutableMapping):
                 self.chunk_stores[store.config['STORE']['store_id']] = store
                 self.config['STORES'][os.path.join(store.config['STORE']['path'], 'store.conf')] = store.config['STORE']['type']
                 self.config['BALANCE'][store.config['STORE']['store_id']] = '1'
+            self.config_path = os.path.join(self.config['HOARD']['path'], 'hoard.conf')
         if not os.path.exists(self.config['HOARD']['path']):
             os.makedirs(self.config['HOARD']['path'])
-        with open(os.path.join(self.config['HOARD']['path'], 'hoard.conf'), 'w') as f:
+        with open(self.config_path, 'w') as f:
             self.config.write(f)
 
         if self.config['HOARD']['db'] == 'sqlite':
-            self.con = sqlite3.connect(self.config['HOARD']['db_path'], check_same_thread=False)
+            path = os.path.join(os.path.dirname(self.config_path), self.config['HOARD']['db_path'])
+            self.con = sqlite3.connect(path, check_same_thread=False)
         else:
             raise ValueError('Invalid DB type.')
 
@@ -110,6 +113,7 @@ class Hoard(collections.MutableMapping):
 
     def __len__(self):
         with self.con as con:
+            cur = con.cursor()
             con.execute("SELECT COUNT(*) from file;")
             return cur.fetchone()[0]
 
