@@ -11,7 +11,9 @@ from .backends.local import LocalFileStore
 
 class StoredFile:
     chunks = []
-    def __init__(self, chunks):
+    position = 0
+    def __init__(self, chunks, size):
+        self.size = size
         self.chunks = chunks
 
     def __enter__(self):
@@ -38,13 +40,28 @@ class StoredFile:
             if size != -1:
                 left -= len(part)
         data.seek(0)
-        return data.read()
+        d = data.read()
+        self.position += len(d)
+        return d
 
     def seek(self, offset, from_where=0):
         left = offset
         if from_where == 0:
-            for c in self.chunks:
-                c.seek(0,0)
+            if offset > self.position:
+                left = offset - self.position
+            else:
+                for c in self.chunks:
+                    c.seek(0,0)
+                self.position = 0
+        elif from_where == 1:
+            pass
+        elif from_where == 2:
+            offset = self.size - offset
+            if offset < self.position:
+                self.seek(0,0)
+                left = offset
+            else:
+                left = offset - self.position
         else:
             raise NotImplementedError
         for c in self.chunks:
@@ -57,6 +74,10 @@ class StoredFile:
                 c.seek(start + left, 0)
                 end = c.tell()
             left -= (end - start)
+            self.position += (end - start)
+
+    def tell(self):
+        return self.position
 
 class Hoard(collections.MutableMapping):
     """A file store."""
@@ -121,6 +142,9 @@ class Hoard(collections.MutableMapping):
         chunks = []
         with self.con as con:
             cur = con.cursor()
+            cur.execute("SELECT size FROM file WHERE id = ?;", (key,))
+            r = cur.fetchone()
+            size = r[0]
             cur.execute("""
                 SELECT chunk_store, name
                 FROM chunk
@@ -130,7 +154,7 @@ class Hoard(collections.MutableMapping):
                 chunks.append(self.chunk_stores[c[0]][c[1]])
             if not chunks:
                 raise KeyError("No such file in this Hoard.")
-            return StoredFile(chunks)
+            return StoredFile(chunks, size)
 
     def __setitem__(self, key, value):
         raise NotImplementedError("Use Hoard.put().")
