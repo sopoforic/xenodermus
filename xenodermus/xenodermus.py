@@ -173,6 +173,10 @@ class Hoard(collections.MutableMapping):
                 DELETE
                 FROM chunk
                 WHERE file_id = ?;""", (key,))
+            cur.execute("""
+                DELETE
+                FROM file
+                WHERE id = ?;""", (key,))
 
     def put(self, data, name=None):
         name = name
