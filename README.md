@@ -1,6 +1,6 @@
 # Xenodermus
 
-Xenodermus is a simple (only about 200 lines of code) file storage system.
+Xenodermus is a simple (only about 300 lines of code) file storage system.
 
 # Why?
 
