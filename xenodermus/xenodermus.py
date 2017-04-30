@@ -144,6 +144,8 @@ class Hoard(collections.MutableMapping):
             cur = con.cursor()
             cur.execute("SELECT size FROM file WHERE id = ?;", (key,))
             r = cur.fetchone()
+            if not r:
+                raise KeyError("No such file in this Hoard.")
             size = r[0]
             cur.execute("""
                 SELECT chunk_store, name
